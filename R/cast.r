@@ -57,9 +57,8 @@
 #' 
 #' acast(aqm, day ~ month ~ variable)
 #' acast(aqm, month ~ variable, mean)
-#' dcast(aqm, month ~ variable, mean)
-#' acast(aqm, month ~ variable, mean, margins=c("grand_row", "grand_col"))
-#' dcast(aqm, month ~ variable, mean, margins=c("grand_row", "grand_col"))
+#' acast(aqm, month ~ variable, mean, margins = TRUE)
+#' dcast(aqm, month ~ variable, mean, margins = c("month", "variable"))
 #'
 #' library(plyr) # needed to access . function
 #' acast(aqm, variable ~ month, mean, subset = .(variable == "ozone"))

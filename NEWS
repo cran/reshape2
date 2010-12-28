@@ -1,2 +1,7 @@
-Version 2.0
+Version 1.1
 -----------
+
+* `melt.data.frame` no longer turns characters into factors
+
+* All melt methods gain a `na.rm` and `value.name` arguments - these
+  previously were only possessed by `melt.data.frame` (Fixes #5)

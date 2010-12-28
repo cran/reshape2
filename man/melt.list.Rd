@@ -12,7 +12,7 @@
   \item{...}{further arguments passed to or from other methods.}
   \item{level}{list level - used for creating labels}
 }
-\examples{a <- as.list(1:4)
+\examples{a <- as.list(c(1:4, NA))
 melt(a)
 names(a) <- letters[1:4]
 melt(a)

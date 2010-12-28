@@ -1,21 +1,22 @@
 \name{melt.data.frame}
 \alias{melt.data.frame}
-\title{Melt a data frame...}
+\title{Melt a data frame into form suitable for easy casting.}
 \usage{\method{melt}{data.frame} (data, id.vars, measure.vars,
-    variable.name="variable", value.name="value", na.rm=FALSE, ...)}
+    variable.name="variable", ..., na.rm=FALSE,
+    value.name="value")}
 
 \description{
-  Melt a data frame Melt a data frame into form suitable for easy
-  casting.
+  Melt a data frame into form suitable for easy casting.
 }
 
 \details{
-  You need to tell melt which of your variables are id variables, and
-  which are measured variables. If you only supply one of
-  \code{id.vars} and \code{measure.vars}, melt will assume the
-  remainder of the variables in the data set belong to the other. If
-  you supply neither, melt will assume factor and character variables
-  are id variables, and all others are measured.
+  You need to tell melt which of your variables are id
+  variables, and which are measured variables. If you only
+  supply one of \code{id.vars} and \code{measure.vars},
+  melt will assume the remainder of the variables in the
+  data set belong to the other. If you supply neither, melt
+  will assume factor and character variables are id
+  variables, and all others are measured.
 }
 \keyword{manip}
 \arguments{

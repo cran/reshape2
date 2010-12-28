@@ -11,20 +11,29 @@
 #'
 #' @keywords manip
 #' @param data Data set to melt
+#' @param na.rm Should NA values be removed from the data set? This will 
+#'   convert explicit missings to implicit missings.
 #' @param ... further arguments passed to or from other methods.
+#' @param value.name name of variable used to store values
 #' @export
-melt <- function(data, ...) UseMethod("melt", data)
+melt <- function(data, ..., na.rm = FALSE, value.name = "value") {
+  UseMethod("melt", data)
+}
 
 #' Melt a vector.
 #' For vectors, makes a column of a data frame
 #'
 #' @param data vector to melt
+#' @param na.rm Should NA values be removed from the data set? This will 
+#'   convert explicit missings to implicit missings.
 #' @param ... further arguments passed to or from other methods.
+#' @param value.name name of variable used to store values
 #' @S3method melt default
 #' @method melt default
 #' @keywords manip
-melt.default <- function(data, ...) {
-  data.frame(value = data)
+melt.default <- function(data, ..., na.rm = FALSE, value.name = "value") {
+  if (na.rm) data <- data[!is.na(data)]
+  setNames(data.frame(data), value.name)
 }
 
 #' Melt a list by recursively melting each component.
@@ -36,7 +45,7 @@ melt.default <- function(data, ...) {
 #' @param ... further arguments passed to or from other methods.
 #' @param level list level - used for creating labels
 #' @examples
-#' a <- as.list(1:4)
+#' a <- as.list(c(1:4, NA))
 #' melt(a)
 #' names(a) <- letters[1:4]
 #' melt(a)
@@ -60,11 +69,10 @@ melt.list <- function(data, ..., level = 1) {
   
   # result <- cbind(labels, result)
   # result[, c(setdiff(names(result), "value"), "value")]
-
+  
   result
 }
 
-#' Melt a data frame
 #' Melt a data frame into form suitable for easy casting.
 #'
 #' You need to tell melt which of your variables are id variables, and which
@@ -93,7 +101,7 @@ melt.list <- function(data, ..., level = 1) {
 #' melt(airquality, id=c("month", "day"))
 #' names(ChickWeight) <- tolower(names(ChickWeight))
 #' melt(ChickWeight, id=2:4)
-melt.data.frame <- function(data, id.vars, measure.vars, variable.name = "variable", value.name = "value", na.rm = FALSE, ...) {
+melt.data.frame <- function(data, id.vars, measure.vars, variable.name = "variable", ..., na.rm = FALSE, value.name = "value") {
   var <- melt_check(data, id.vars, measure.vars)
 
   ids <- unrowname(data[, var$id, drop = FALSE])
@@ -105,7 +113,7 @@ melt.data.frame <- function(data, id.vars, measure.vars, variable.name = "variab
   variable <- factor(rep(var$measure, each = nrow(data)), 
     levels = var$measure)
   
-  df <- data.frame(ids, variable, value)
+  df <- data.frame(ids, variable, value, stringsAsFactors = FALSE)
   names(df) <- c(names(ids), variable.name, value.name)
 
   if (na.rm) {
@@ -122,28 +130,39 @@ melt.data.frame <- function(data, id.vars, measure.vars, variable.name = "variab
 #' @param data array to melt
 #' @param varnames variable names to use in molten data.frame
 #' @param ... further arguments passed to or from other methods.
+#' @param value.name name of variable used to store values
+#' @param na.rm Should NA values be removed from the data set? This will 
+#'   convert explicit missings to implicit missings.
 #' @keywords manip
 #' @S3method melt matrix
 #' @S3method melt array
 #' @method melt array
 #' @examples
-#' a <- array(1:24, c(2,3,4))
+#' a <- array(c(1:23, NA), c(2,3,4))
 #' melt(a)
+#' melt(a, na.rm = TRUE)
 #' melt(a, varnames=c("X","Y","Z"))
 #' dimnames(a) <- lapply(dim(a), function(x) LETTERS[1:x])
 #' melt(a)
 #' melt(a, varnames=c("X","Y","Z"))
 #' dimnames(a)[1] <- list(NULL)
 #' melt(a)
-melt.array <- function(data, varnames = names(dimnames(data)), ...) {
+melt.array <- function(data, varnames = names(dimnames(data)), ..., na.rm = FALSE, value.name = "value") {
   var.convert <- function(x) if(is.character(x)) type.convert(x) else x
 
   dn <- amv_dimnames(data)
   names(dn) <- varnames
   labels <- expand.grid(lapply(dn, var.convert), KEEP.OUT.ATTRS = FALSE,
     stringsAsFactors = FALSE)
+    
+  if (na.rm) {
+    missing <- is.na(data)
+    data <- data[!missing]
+    labels <- labels[!missing, ]
+  }
 
-  data.frame(labels, value = as.vector(data))
+  value_df <- setNames(data.frame(as.vector(data)), value.name) 
+  cbind(labels, value_df)
 }
 
 melt.table <- melt.array

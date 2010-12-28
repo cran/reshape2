@@ -55,7 +55,7 @@ test_that("aggregation matches table", {
 test_that("grand margins are computed correctly", {
   col <- acast(s2m, X1 ~ X2, mean, margins = "X1")[4, ]
   row <- acast(s2m, X1 ~ X2, mean, margins = "X2")[, 5]
-  grand <- acast(s2m, X1 ~ X2, mean, margins = T)[4, 5]
+  grand <- acast(s2m, X1 ~ X2, mean, margins = TRUE)[4, 5]
   
   expect_equivalent(col, colMeans(s2))
   expect_equivalent(row, rowMeans(s2))
@@ -103,4 +103,17 @@ test_that("aggregated values computed correctly", {
       label = paste(vars, collapse = ", "))
   })
   
+})
+
+test_that("value_var overrides value col", {
+  df <- data.frame(
+    id1 = rep(letters[1:2],2), 
+    id2 = rep(LETTERS [1:2],each=2), var1=1:4)
+
+  df.m <- melt(df)
+  df.m$value2 <- df.m$value * 2
+  expect_that(acast(df.m, id2 + id1 ~ ., value_var="value")[, 1], 
+    equals(1:4, check.attributes = FALSE))
+  expect_that(acast(df.m, id2 + id1 ~ ., value_var="value2")[, 1], 
+    equals(2 * 1:4, check.attributes = FALSE))
 })
