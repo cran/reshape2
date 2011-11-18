@@ -35,3 +35,21 @@ test_that("value col name set by value.name", {
   df <- data.frame(x = v)
   expect_equal(names(melt(df, value.name = "v"))[2], "v")
 })
+
+test_that("lists can have zero element components", {
+  l <- list(a = 1:10, b = integer(0))
+  m <- melt(l)
+  
+  expect_equal(nrow(m), 10)
+})
+
+test_that("factors coerced to characters, not integers", {
+  df <- data.frame(
+    id = 1:3, 
+    v1 = 1:3, 
+    v2 = factor(letters[1:3]))
+  dfm <- melt(df, 1)
+  
+  expect_equal(dfm$value, c(1:3, letters[1:3]))
+  
+})
