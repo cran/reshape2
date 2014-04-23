@@ -15,6 +15,7 @@
 #'   convert explicit missings to implicit missings.
 #' @param ... further arguments passed to or from other methods.
 #' @param value.name name of variable used to store values
+#' @seealso \code{\link{cast}}
 #' @export
 melt <- function(data, ..., na.rm = FALSE, value.name = "value") {
   UseMethod("melt", data)
@@ -28,9 +29,10 @@ melt <- function(data, ..., na.rm = FALSE, value.name = "value") {
 #'   convert explicit missings to implicit missings.
 #' @param ... further arguments passed to or from other methods.
 #' @param value.name name of variable used to store values
-#' @S3method melt default
-#' @method melt default
 #' @keywords manip
+#' @seealso \code{\link{melt}}, \code{\link{cast}}
+#' @family melt methods
+#' @export
 melt.default <- function(data, ..., na.rm = FALSE, value.name = "value") {
   if (na.rm) data <- data[!is.na(data)]
   setNames(data.frame(data), value.name)
@@ -39,11 +41,12 @@ melt.default <- function(data, ..., na.rm = FALSE, value.name = "value") {
 #' Melt a list by recursively melting each component.
 #'
 #' @keywords manip
-#' @S3method melt list
-#' @method melt list
 #' @param data list to recursively melt
 #' @param ... further arguments passed to or from other methods.
 #' @param level list level - used for creating labels
+#' @seealso \code{\link{cast}}
+#' @family melt methods
+#' @export
 #' @examples
 #' a <- as.list(c(1:4, NA))
 #' melt(a)
@@ -84,7 +87,7 @@ melt.list <- function(data, ..., level = 1) {
 #'
 #' @param data data frame to melt
 #' @param id.vars vector of id variables. Can be integer (variable position)
-#'   or string (variable name)If blank, will use all non-measured variables.
+#'   or string (variable name). If blank, will use all non-measured variables.
 #' @param measure.vars vector of measured variables. Can be integer (variable
 #'   position) or string (variable name)If blank, will use all non id.vars
 #    variables.
@@ -93,37 +96,48 @@ melt.list <- function(data, ..., level = 1) {
 #' @param na.rm Should NA values be removed from the data set? This will
 #'   convert explicit missings to implicit missings.
 #' @param ... further arguments passed to or from other methods.
+#' @param factorsAsStrings Control whether factors are converted to character
+#'   when melted as measure variables. When \code{FALSE}, coercion is forced if
+#'   levels are not identical across the \code{measure.vars}.
+#' @family melt methods
 #' @keywords manip
-#' @method melt data.frame
-#' @S3method melt data.frame
+#' @seealso \code{\link{cast}}
+#' @export
 #' @examples
 #' names(airquality) <- tolower(names(airquality))
 #' melt(airquality, id=c("month", "day"))
 #' names(ChickWeight) <- tolower(names(ChickWeight))
 #' melt(ChickWeight, id=2:4)
-melt.data.frame <- function(data, id.vars, measure.vars, variable.name = "variable", ..., na.rm = FALSE, value.name = "value") {
-  var <- melt_check(data, id.vars, measure.vars)
+melt.data.frame <- function(data, id.vars, measure.vars, variable.name = "variable", ..., na.rm = FALSE, value.name = "value", factorsAsStrings = TRUE) {
 
-  ids <- unrowname(data[, var$id, drop = FALSE])
-  if (length(var$measure) == 0) {
-    return(ids)
-  }
+  ## Get the names of id.vars, measure.vars
+  vars <- melt_check(data, id.vars, measure.vars, variable.name, value.name)
 
-  # Turn factors to characters
-  factors <- vapply(data, is.factor, logical(1))
-  data[factors] <- lapply(data[factors], as.character)
+  ## Match them to indices in the data
+  id.ind <- match(vars$id, names(data))
+  measure.ind <- match(vars$measure, names(data))
 
-  value <- unlist(unname(data[var$measure]))
-  variable <- factor(rep(var$measure, each = nrow(data)),
-    levels = var$measure)
+  ## Get the attributes if common, NULL if not.
+  args <- normalize_melt_arguments(data, measure.ind, factorsAsStrings)
+  measure.attributes <- args$measure.attributes
+  factorsAsStrings <- args$factorsAsStrings
+  valueAsFactor <- "factor" %in% measure.attributes$class
 
-  df <- data.frame(ids, variable, value, stringsAsFactors = FALSE)
-  names(df) <- c(names(ids), variable.name, value.name)
+  df <- melt_dataframe(
+    data,
+    as.integer(id.ind-1),
+    as.integer(measure.ind-1),
+    as.character(variable.name),
+    as.character(value.name),
+    as.pairlist(measure.attributes),
+    as.logical(factorsAsStrings),
+    as.logical(valueAsFactor)
+  )
 
   if (na.rm) {
-    subset(df, !is.na(value))
+    return(df[ !is.na(df[[value.name]]), ])
   } else {
-    df
+    return(df)
   }
 }
 
@@ -134,14 +148,16 @@ melt.data.frame <- function(data, id.vars, measure.vars, variable.name = "variab
 #' @param data array to melt
 #' @param varnames variable names to use in molten data.frame
 #' @param ... further arguments passed to or from other methods.
+#' @param as.is if \code{FALSE}, the default, dimnames will be converted
+#'   using \code{\link{type.convert}}. If \code{TRUE}, they will be left
+#'   as strings.
 #' @param value.name name of variable used to store values
 #' @param na.rm Should NA values be removed from the data set? This will
 #'   convert explicit missings to implicit missings.
 #' @keywords manip
-#' @S3method melt table
-#' @S3method melt matrix
-#' @S3method melt array
-#' @method melt array
+#' @export
+#' @seealso \code{\link{cast}}
+#' @family melt methods
 #' @examples
 #' a <- array(c(1:23, NA), c(2,3,4))
 #' melt(a)
@@ -152,12 +168,24 @@ melt.data.frame <- function(data, id.vars, measure.vars, variable.name = "variab
 #' melt(a, varnames=c("X","Y","Z"))
 #' dimnames(a)[1] <- list(NULL)
 #' melt(a)
-melt.array <- function(data, varnames = names(dimnames(data)), ..., na.rm = FALSE, value.name = "value") {
-  var.convert <- function(x) if(is.character(x)) type.convert(x) else x
+melt.array <- function(data, varnames = names(dimnames(data)), ...,
+                       na.rm = FALSE, as.is = FALSE, value.name = "value") {
+  var.convert <- function(x) {
+    if (!is.character(x)) return(x)
+
+    x <- type.convert(x, as.is = TRUE)
+    if (!is.character(x)) return(x)
+
+    factor(x, levels = unique(x))
+  }
 
   dn <- amv_dimnames(data)
   names(dn) <- varnames
-  labels <- expand.grid(lapply(dn, var.convert), KEEP.OUT.ATTRS = FALSE,
+  if (!as.is) {
+    dn <- lapply(dn, var.convert)
+  }
+
+  labels <- expand.grid(dn, KEEP.OUT.ATTRS = FALSE,
     stringsAsFactors = FALSE)
 
   if (na.rm) {
@@ -170,7 +198,12 @@ melt.array <- function(data, varnames = names(dimnames(data)), ..., na.rm = FALS
   cbind(labels, value_df)
 }
 
+#' @rdname melt.array
+#' @export
 melt.table <- melt.array
+
+#' @rdname melt.array
+#' @export
 melt.matrix <- melt.array
 
 #' Check that input variables to melt are appropriate.
@@ -184,8 +217,10 @@ melt.matrix <- melt.array
 #' @param data data frame
 #' @param id.vars vector of identifying variable names or indexes
 #' @param measure.vars vector of Measured variable names or indexes
+#' @param variable.name name of variable used to store measured variable names
+#' @param value.name name of variable used to store values
 #' @return a list giving id and measure variables names.
-melt_check <- function(data, id.vars, measure.vars) {
+melt_check <- function(data, id.vars, measure.vars, variable.name, value.name) {
   varnames <- names(data)
 
   # Convert positions to names
@@ -218,12 +253,22 @@ melt_check <- function(data, id.vars, measure.vars) {
     discrete <- sapply(data, is.discrete)
     id.vars <- varnames[discrete]
     measure.vars <- varnames[!discrete]
-    message("Using ", paste(id.vars, collapse = ", "), " as id variables")
+    if (length(id.vars) != 0) {
+      message("Using ", paste(id.vars, collapse = ", "), " as id variables")
+    } else {
+      message("No id variables; using all as measure variables")
+    }
   } else if (missing(id.vars)) {
     id.vars <- setdiff(varnames, measure.vars)
   } else if (missing(measure.vars)) {
     measure.vars <- setdiff(varnames, id.vars)
   }
+
+  # Ensure variable names are characters of length one
+  if (!is.string(variable.name))
+    stop("'variable.name' should be a string", call. = FALSE)
+  if (!is.string(value.name))
+    stop("'value.name' should be a string", call. = FALSE)
 
   list(id = id.vars, measure = measure.vars)
 }

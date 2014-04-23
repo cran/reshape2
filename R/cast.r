@@ -23,10 +23,6 @@
 #' function, \code{fun.aggregate}. This function should take a vector of
 #' numbers and return a single summary statistic.
 #'
-#' @usage acast(data, formula, fun.aggregate = NULL, ..., margins = NULL,
-#'    subset = NULL, fill=NULL, drop = TRUE, value.var = guess_value(data))
-#' @usage dcast(data, formula, fun.aggregate = NULL, ..., margins = NULL,
-#'    subset = NULL, fill=NULL, drop = TRUE, value.var = guess_value(data))
 #' @keywords manip
 #' @param data molten data frame, see \code{\link{melt}}.
 #' @param formula casting formula, see details for specifics.
@@ -45,9 +41,6 @@
 #' @param value.var name of column which stores values, see
 #'   \code{\link{guess_value}} for default strategies to figure this out.
 #' @seealso \code{\link{melt}},  \url{http://had.co.nz/reshape/}
-#' @name cast
-#' @aliases cast dcast acast
-#' @export dcast acast
 #' @import plyr
 #' @import stringr
 #' @examples
@@ -93,10 +86,20 @@
 #' acast(ff_d, subject ~ time, length, fill=0)
 #' dcast(ff_d, treatment ~ variable, mean, margins = TRUE)
 #' dcast(ff_d, treatment + subject ~ variable, mean, margins="treatment")
-#' lattice::xyplot(`1` ~ `2` | variable, dcast(ff_d, ... ~ rep), aspect="iso")
+#' if (require("lattice")) {
+#'  lattice::xyplot(`1` ~ `2` | variable, dcast(ff_d, ... ~ rep), aspect="iso")
+#' }
+#' @name cast
 NULL
 
-cast <- function(data, formula, fun.aggregate = NULL, ..., subset = NULL, fill = NULL, drop = TRUE, value.var = guess_value(data)) {
+cast <- function(data, formula, fun.aggregate = NULL, ..., subset = NULL, fill = NULL, drop = TRUE, value.var = guess_value(data), value_var) {
+
+  if (!missing(value_var)) {
+    stop("Please use value.var instead of value_var.", call. = FALSE)
+  }
+  if (!(value.var %in% names(data))) {
+    stop("value.var (", value.var, ") not found in input", call. = FALSE)
+  }
 
   if (!is.null(subset)) {
     include <- data.frame(eval.quoted(subset, data))
@@ -112,13 +115,17 @@ cast <- function(data, formula, fun.aggregate = NULL, ..., subset = NULL, fill =
 
   # Compute labels and id values
   ids <- lapply(vars, id, drop = drop)
+
+  # Empty specifications (.) get repeated id
+  is_empty <- vapply(ids, length, integer(1)) == 0
+  empty <- structure(rep(1, nrow(data)), n = 1L)
+  ids[is_empty] <- rep(list(empty), sum(is_empty))
+
   labels <- mapply(split_labels, vars, ids, MoreArgs = list(drop = drop),
     SIMPLIFY = FALSE, USE.NAMES = FALSE)
-  overall <- id(rev(ids), drop = FALSE)
+  labels[is_empty] <- rep(list(data.frame(. = ".")), sum(is_empty))
 
-  ns <- vapply(ids, attr, 0, "n")
-  # Replace zeros (empty inputs) with 1 for dimensions of output
-  ns[ns == 0] <- 1
+  overall <- id(rev(ids), drop = FALSE)
   n <- attr(overall, "n")
 
   # Aggregate duplicates
@@ -146,12 +153,17 @@ cast <- function(data, formula, fun.aggregate = NULL, ..., subset = NULL, fill =
     }
   }
 
+  ns <- vapply(ids, attr, double(1), "n")
+  dim(ordered) <- ns
+
   list(
-    data = structure(ordered, dim = ns),
+    data = ordered,
     labels = labels
   )
 }
 
+#' @rdname cast
+#' @export
 dcast <- function(data, formula, fun.aggregate = NULL, ..., margins = NULL, subset = NULL, fill=NULL, drop = TRUE, value.var = guess_value(data))  {
 
   formula <- parse_formula(formula, names(data), value.var)
@@ -174,6 +186,8 @@ dcast <- function(data, formula, fun.aggregate = NULL, ..., margins = NULL, subs
   cbind(res$labels[[1]], data)
 }
 
+#' @rdname cast
+#' @export
 acast <- function(data, formula, fun.aggregate = NULL, ..., margins = NULL, subset = NULL, fill=NULL, drop = TRUE, value.var = guess_value(data)) {
 
   formula <- parse_formula(formula, names(data), value.var)

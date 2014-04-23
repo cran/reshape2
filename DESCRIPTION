@@ -1,19 +1,20 @@
 Package: reshape2
 Type: Package
 Title: Flexibly reshape data: a reboot of the reshape package.
-Version: 1.2.2
-Author: Hadley Wickham <hadley@rice.edu>
-Maintainer: Hadley Wickham <hadley@rice.edu>
-Description: Reshape lets you flexibly restructure and aggregate data
-        using just two functions: melt and cast.
-URL: http://had.co.nz/reshape
-Imports: plyr (>= 1.5), stringr, lattice
-Suggests: testthat
-License: MIT
+Version: 1.4
+Author: Hadley Wickham <h.wickham@gmail.com>
+Maintainer: Hadley Wickham <h.wickham@gmail.com>
+Description: Reshape lets you flexibly restructure and
+    aggregate data using just two functions: melt and cast.
+URL: https://github.com/hadley/reshape
+BugReports: https://github.com/hadley/reshape/issues
+LinkingTo: Rcpp
+Imports: plyr (>= 1.8.1), stringr, Rcpp
+Roxygen: list(wrap = FALSE)
+Suggests: testthat (>= 0.8.0), lattice
+License: MIT + file LICENSE
 LazyData: true
-Collate: 'cast.r' 'data.r' 'formula.r' 'helper-colsplit.r'
-        'helper-guess-value.r' 'helper-margins.r' 'melt.r' 'recast.r'
-        'utils.r'
-Packaged: 2012-12-04 19:05:50 UTC; hadley
+Packaged: 2014-04-23 12:12:47 UTC; hadley
+NeedsCompilation: yes
 Repository: CRAN
-Date/Publication: 2012-12-04 23:10:53
+Date/Publication: 2014-04-23 16:34:12

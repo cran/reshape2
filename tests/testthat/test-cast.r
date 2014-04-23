@@ -108,7 +108,7 @@ test_that("aggregated values computed correctly", {
 test_that("value.var overrides value col", {
   df <- data.frame(
     id1 = rep(letters[1:2],2),
-    id2 = rep(LETTERS [1:2],each=2), var1=1:4)
+    id2 = rep(LETTERS[1:2],each=2), var1=1:4)
 
   df.m <- melt(df)
   df.m$value2 <- df.m$value * 2
@@ -174,4 +174,30 @@ test_that("dcast evaluated in correct argument", {
   res <- eval(expr, envir = new.env())
   expect_equal(names(res), c("y", "b", "a"))
 
+})
+
+test_that(". ~ . returns single value", {
+  one <- acast(s2m, . ~ .,  sum)
+  expect_equal(as.vector(one), 78)
+  expect_equal(dimnames(one), list(".", "."))
+})
+
+test_that("drop = TRUE retains NA values", {
+  df <- data.frame(x = 1:5, y = c(letters[1:4], NA), value = 5:1)
+  out <- dcast(df, x + y ~ .)
+
+  expect_equal(dim(out), c(5, 3))
+  expect_equal(out$., 5:1)
+})
+
+test_that("useful error message if you use value_var", {
+  expect_error(dcast(mtcars, vs ~ am, value_var = "cyl"),
+    "Please use value.var", fixed = TRUE)
+  expect_equal(dim(dcast(mtcars, vs ~ am, value.var = "cyl")), c(2, 3))
+
+})
+
+test_that("useful error message if value.var doesn't exist", {
+  expect_error(dcast(airquality, month ~ day, value.var = "test"),
+    "value.var (test) not found in input", fixed = TRUE)
 })
