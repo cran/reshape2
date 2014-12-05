@@ -43,6 +43,8 @@ SEXP rep_(SEXP x, int n) {
       DO_REP(CPLXSXP, Rcomplex, COMPLEX);
     case RAWSXP:
       DO_REP(RAWSXP, Rbyte, RAW);
+    case VECSXP:
+      DO_REP(VECSXP, SEXP, STRING_PTR);
     default: {
       stop("Unhandled RTYPE");
       return R_NilValue;
@@ -94,6 +96,8 @@ SEXP rep_each_(SEXP x, int n) {
       DO_REP_EACH(CPLXSXP, Rcomplex, COMPLEX);
     case RAWSXP:
       DO_REP_EACH(RAWSXP, Rbyte, RAW);
+    case VECSXP:
+      DO_REP_EACH(VECSXP, SEXP, STRING_PTR);
     default: {
       stop("Unhandled RTYPE");
       return R_NilValue;
@@ -208,22 +212,21 @@ List melt_dataframe(const DataFrame& data,
                     bool valueAsFactor) {
 
   int nrow = data.nrows();
-  int ncol = data.size();
 
   CharacterVector data_names = as<CharacterVector>(data.attr("names"));
-
-  // We only melt data.frames that contain only atomic elements
-  for (int i = 0; i < ncol; ++i) {
-    if (!Rf_isVectorAtomic(data[i])) {
-      stop("Can't melt data.frames with non-atomic columns");
-    }
-  }
 
   int n_id = id_ind.size();
   debug(Rprintf("n_id == %i\n", n_id));
 
   int n_measure = measure_ind.size();
   debug(Rprintf("n_measure == %i\n", n_measure));
+
+  // Don't melt if the value variables are non-atomic
+  for (int i = 0; i < n_measure; ++i) {
+    if (!Rf_isVectorAtomic(data[measure_ind[i]])) {
+      stop("Can't melt data.frames with non-atomic 'measure' columns");
+    }
+  }
 
   // The output should be a data.frame with:
   // number of columns == number of id vars + 'variable' + 'value',
@@ -249,6 +252,7 @@ List melt_dataframe(const DataFrame& data,
       REP(STRSXP);
       REP(CPLXSXP);
       REP(RAWSXP);
+      REP(VECSXP);
       default: { stop("internal error: unnhandled vector type in REP"); }
     }
   }
@@ -267,12 +271,11 @@ List melt_dataframe(const DataFrame& data,
   output[n_id + 1] = concatenate(data, measure_ind, factorsAsStrings);
   if (!Rf_isNull(measure_attributes)) {
     SET_ATTRIB(output[n_id + 1], measure_attributes);
-  }
-
-  // Set the object bit explicitly to make sure that the 'value' is properly
-  // interpreted as a factor
-  if (valueAsFactor) {
-    SET_OBJECT(output[n_id + 1], 1);
+    // we also need to make sure the OBJECT bit is set for other 'object' types
+    // see: http://stackoverflow.com/questions/24059460/melt-data-frame-changes-behavior-how-posixct-columns-are-printed
+    // if we've entered this code block, the measure_attributes has been
+    // populated because all value variables have identical attributes
+    SET_OBJECT(output[n_id + 1], OBJECT(data[measure_ind[0]]));
   }
 
   // Make the List more data.frame like
